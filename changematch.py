@@ -1,4 +1,4 @@
-import streamlit as st
+import json, streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -10,7 +10,8 @@ st.title("💰 ChangeFinder - Find or Give Small Change Nearby")
 scope = ["https://spreadsheets.google.com/feeds",
          "https://www.googleapis.com/auth/drive"]
 
-creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+creds_dict = json.loads(st.secrets["google"].to_json())
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 # Open the sheet
