@@ -1,52 +1,40 @@
 import streamlit as st
 import pandas as pd
-import os
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-st.set_page_config(layout="wide")   
-
+st.set_page_config(page_title="ChangeFinder 💰", page_icon="💰")
 st.title("💰 ChangeFinder - Find or Give Small Change Nearby")
 
-# CSV file to store change data
-DATA_FILE = "change_data.csv"
+# --- Google Sheets Setup ---
+scope = ["https://spreadsheets.google.com/feeds",
+         "https://www.googleapis.com/auth/drive"]
 
-# Load data if fikle exists, else create an empty DataFrame
+creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+client = gspread.authorize(creds)
 
-if os.path.exists(DATA_FILE):
-    df = pd.read_csv(DATA_FILE)
-else:
-    df = pd.DataFrame(columns=["Type", "Amount", "Details", "Name"])
+# Open the sheet
+sheet = client.open("changefinder_data").sheet1
 
+# Load data into pandas DataFrame
+data = sheet.get_all_records()
+df = pd.DataFrame(data)
+
+# --- Streamlit UI ---
 st.subheader("Post Your Request")
-
-mode = st.radio("I want to:", ("Find Change", "Give Change"))
-amount = st.number_input("Amount (in inr)", min_value=0.01, step=0.01, format="%.2f")
-details = st.text_area("Details (e.g., location, time)", max_chars=200)
-name = st.text_input("Your Name (optional)")
+mode = st.radio("What do you want to do?", ["I have change", "I need change"])
+amount = st.number_input("Amount (₹)", min_value=5, step=5)
+details = st.text_input("Details (example: ₹10 coins, ₹20 notes)")
+name = st.text_input("Your Name")
 
 if st.button("Post"):
-    new_row = {"Type": mode, "Amount": amount, "Details": details, "Name": name}
-    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-    df.to_csv(DATA_FILE, index=False)
-    st.success("✅ Your request has been saved!")
+    sheet.append_row([mode, amount, details, name])
+    st.success("✅ Your request has been saved to Google Sheets!")
 
 st.divider()
 st.subheader("🔍 Current Requests")
 
-if len(df) > 0:
+if not df.empty:
     st.dataframe(df)
-    st.markdown("### ❌ Terminate (Delete) a Request")
-    delete_index = st.number_input("Enter the index of the request to delete", 
-    min_value=0,
-    max_value=len(df)-1,
-    step=1  
-)
-    
-    if st.button("Delete Request"):
-        df = df.drop(delete_index).reset_index(drop=True)
-        df.to_csv(DATA_FILE, index=False)
-        st.success("✅ Request deleted!")
-    
 else:
-    st.info("No requests found. Be the first to post!")
-
-
+    st.info("No posts yet. Be the first to add one!")
